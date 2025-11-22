@@ -1,0 +1,33 @@
+########################################################
+# Fortran project .gitignore
+########################################################
+
+# --- Fortran module files ---
+*.mod
+*.MOD
+*.smod
+
+# --- Object files ---
+*.o
+*.obj
+
+# --- Library outputs ---
+*.so
+*.dll
+*.dylib
+*.lib
+*.a
+
+# --- Compiler / build artifacts ---
+*.lst
+*.map
+*.out
+*.tmp
+
+# --- Precompiled files ---
+*.pch
+
+# --- Debugger / profile output ---
+gmon.out
+*.prof
+

@@ -1,0 +1,8 @@
+GE Capital Market:            -0.000 
+Capital-output ratio     K/Y: 2.991 
+Interest rate (in %)      r:  4.035 
+Consumption-output ratio C/Y: 0.761 
+Investment-output ratio  I/Y: 0.239 
+CV labor earnings:            0.201 
+CV of consumption:            0.154 
+CV of wealth:                 0.859 
