@@ -10,11 +10,8 @@ addpath(genpath('C:\Users\aledi\Documents\GitHub\VFIToolkit-matlab'))
 res_dir_discrete = fullfile('results','discrete'); % pure discretization
 res_dir_interp   = fullfile('results','interp');   % interpolation
 
-% Set flags
-do_laffer = 0;
-
 %% Set parameters
-[n_d,d_grid,n_a,a_grid,n_z,z_grid,pi_z,Params,vfoptions,simoptions,heteroagentoptions] = set_params;
+[n_d,d_grid,n_a,a_grid,n_z,z_grid,pi_z,Params,vfoptions,simoptions,heteroagentoptions] = set_params();
 
 if vfoptions.gridinterplayer==0
     res_dir = res_dir_discrete;
@@ -25,7 +22,7 @@ end
 %% Set return function
 DiscFactorNames={'beta'};
 
-ReturnFn=@(aprime,a,z,alpha,delta,r,tau_a,crra) f_returnfn(aprime,a,z,alpha,delta,r,tau_a,crra);
+ReturnFn=@(aprime,a,z,alpha,delta,r,crra) f_returnfn(aprime,a,z,alpha,delta,r,crra);
 
 %% Create functions to be evaluated
 FnsToEval.A = @(aprime,a,z) a;
@@ -40,13 +37,33 @@ GeEqmEqns.CapitalMkt = @(r,A,alpha,delta,L_agg) r-(alpha*(A^(alpha-1))*(L_agg^(1
 
 fprintf('Grid sizes are: %d points for assets, and %d points for exogenous shock \n', n_a,n_z)
 
+vfoptions.preGI = 1;
+
 disp('Start VFI...')
 tic
-[~,Policy]=ValueFnIter_Case1(n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,Params,DiscFactorNames,[],vfoptions);
+[V1,Policy1]=ValueFnIter_Case1(n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,Params,DiscFactorNames,[],vfoptions);
 time_vfi=toc;
 
-fprintf('vfoptions.howardssparse = %d \n',vfoptions.howardssparse)
-fprintf('Run time VFI            = %f \n',time_vfi)
+fprintf('vfoptions.gridinterplayer = %d \n',vfoptions.gridinterplayer)
+fprintf('vfoptions.preGI           = %d \n',vfoptions.preGI)
+fprintf('Run time VFI              = %f \n',time_vfi)
+
+vfoptions.preGI = 0;
+
+disp('Start VFI...')
+tic
+[V0,Policy0]=ValueFnIter_Case1(n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,Params,DiscFactorNames,[],vfoptions);
+time_vfi=toc;
+
+errV = max(abs(V0-V1),[],"all");
+errP = max(abs(Policy0-Policy1),[],"all"); 
+
+fprintf('vfoptions.gridinterplayer = %d \n',vfoptions.gridinterplayer)
+fprintf('vfoptions.preGI           = %d \n',vfoptions.preGI)
+fprintf('Run time VFI              = %f \n',time_vfi)
+
+fprintf('Difference pre-GI post-GI, value function = %f \n',errV)
+fprintf('Difference pre-GI post-GI, policy function = %f \n',errP)
 
 disp('Start distribution...')
 StatDist=StationaryDist_Case1(Policy,n_d,n_a,n_z,pi_z,simoptions);
@@ -187,58 +204,3 @@ ylabel('Savings for tomorrow a'' ')
 xlim([0,0.5])
 print(fullfile(res_dir,'pol_aprime'),'-dpng')
 
-%% Laffer curve for wealth tax
-
-if do_laffer==1
-n_tau = 10;
-tau_a_vec = linspace(0,0.05,n_tau)';
-taxrev_vec = zeros(n_tau,1);
-r_vec      = zeros(n_tau,1);
-K_vec      = zeros(n_tau,1);
-V_vec      = cell(n_tau,1);
-Policy_vec   = cell(n_tau,1);
-StatDist_vec = cell(n_tau,1);
-
-for ii=1:n_tau
-    Params.tau_a = tau_a_vec(ii);
-    fprintf('Solving model with tau_a=%f, ii=%d, out of %d \n',Params.tau_a,ii,n_tau)
-    [p_eqm,~,GeEqmCondn]=HeteroAgentStationaryEqm_Case1(n_d,n_a,n_z,0,pi_z,d_grid,a_grid,z_grid,ReturnFn,FnsToEval,GeEqmEqns,Params,DiscFactorNames,[],[],[],GEPriceNames,heteroagentoptions,simoptions,vfoptions);
-    % Set interest rate equal to equilibrium value
-    Params.r   = p_eqm.r;
-    % Calculate model policies and moments at the equilibrium prices
-    [V,Policy] = ValueFnIter_Case1(n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,Params,DiscFactorNames,[],vfoptions);
-    StatDist   = StationaryDist_Case1(Policy,n_d,n_a,n_z,pi_z,simoptions);
-    AggVars    = EvalFnOnAgentDist_AggVars_Case1(StatDist,Policy,FnsToEval,Params,[],n_d,n_a,n_z,d_grid,a_grid,z_grid,simoptions);
-    % Store results into arrays
-    V_vec{ii}      = V;
-    Policy_vec{ii} = Policy;
-    StatDist_vec{ii} = StatDist;
-    r_vec(ii)      = p_eqm.r;
-    K_vec(ii)      = AggVars.A.Mean;
-    taxrev_vec(ii) = AggVars.taxrev.Mean;
-end
-
-Y_vec = K_vec.^Params.alpha*Params.L_agg^(1-Params.alpha);
-
-figure
-plot(100*tau_a_vec,taxrev_vec,'LineWidth',2)
-title('Total tax revenues')
-xlabel('Wealth tax rate (in %%)')
-grid on
-print(fullfile(res_dir,'taxrev_vec'),'-dpng')
-
-figure
-plot(100*tau_a_vec,K_vec/K_vec(1),'LineWidth',2)
-title('Aggregate Capital')
-xlabel('Wealth tax rate (in %%)')
-grid on
-print(fullfile(res_dir,'K_vec'),'-dpng')
-
-figure
-plot(100*tau_a_vec,Y_vec/Y_vec(1),'LineWidth',2)
-title('Aggregate Output')
-xlabel('Wealth tax rate (in %%)')
-grid on
-print(fullfile(res_dir,'Y_vec'),'-dpng')
-
-end

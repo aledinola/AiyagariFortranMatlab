@@ -1,13 +1,9 @@
 function [n_d,d_grid,n_a,a_grid,n_z,z_grid,pi_z,Params,vfoptions,simoptions,heteroagentoptions] = set_params()
-
 % Note: the standard calibration for Aiyagari is in Kindermann book
-
 
 %% Size of the grids
 n_a = 1000;
 n_z = 7;
-
-do_superstar = 0;
 
 %% Set toolkit options
 
@@ -21,7 +17,7 @@ vfoptions.howardssparse     = 0;    % Use sparse in Howards iterations. Default:
 vfoptions.lowmemory         = 0;    % Default: 0, lowmemory in Return Matrix
 vfoptions.separableReturnFn = 0;    % Default: 0
 vfoptions.divideandconquer  = 0;    % Default: 0
-vfoptions.gridinterplayer   = 0;
+vfoptions.gridinterplayer   = 1;
 vfoptions.ngridinterp       = 15;
 vfoptions.multigridswitch   = 10000;
 
@@ -42,53 +38,21 @@ heteroagentoptions.fminalgo = 0; % 0=fzero; 1=fminsearch (default);
 % 7=fsolve; 8=lsqnonlin
 
 %% Set economic parameters
-Params.beta  = 0.96;%0.924;     % Discount factor
-Params.crra  = 2.0; %1.5      % CRRA utility of consumption
-Params.delta = 0.08;%0.06;    % Depreciation rate
-Params.alpha = 0.36;%0.33;    % Capital share in non-entre sector
+Params.beta  = 0.96; % Discount factor
+Params.crra  = 2.0;  % CRRA utility of consumption
+Params.delta = 0.08; % Depreciation rate
+Params.alpha = 0.36; % Capital share in Cobb-Douglas production
 % --- AR(1) worker ability eps
 uncmean_eps = 0;
-rho_eps     = 0.6;%0.94;
-var_eps     = 0.04*(1-rho_eps^2);%0.02;
+rho_eps     = 0.6;
+var_eps     = 0.04*(1-rho_eps^2);
 sig_eps     = sqrt(var_eps);
-eps_super       = 11.2; % Value (on grid) of super star shock
-prob_super      = 0.0085; % Prob of becoming superstar
-prob_super_back = 0.4; % Prob of falling back
-
-% --- Taxes
-Params.tau_a = 0.0;
 
 %% Grids for a and z
 
 % --- Productivity shock, z
-
-if do_superstar==1
-    eps_grid = zeros(n_z,1);
-    pi_eps   = zeros(n_z,n_z);
-    [eps_grid_help,pi_eps_help]=discretizeAR1_Rouwenhorst(uncmean_eps,rho_eps,sig_eps,n_z-1);
-    
-    aux = pi_eps_help^1000;
-    p_unc_eps_help = aux(1,:)';
-    p_unc_eps_help = p_unc_eps_help/sum(p_unc_eps_help);
-
-    % Add superstar epsilon to eps grid
-    eps_grid(1:n_z-1) = exp(eps_grid_help);
-    eps_grid(n_z)     = eps_super;
-
-    % Construct the transition prob P_eps, including transitions to superstar shock
-    pi_eps(1:n_z-1,1:n_z-1) = (1-prob_super)*pi_eps_help;
-    pi_eps(1:n_z-1,n_z) = prob_super;
-    pi_eps(n_z,1:n_z-1) = prob_super_back*p_unc_eps_help';
-    pi_eps(n_z,n_z)     = 1-prob_super_back;
-
-    % Switch to toolkit notation
-    z_grid = eps_grid;
-    pi_z   = pi_eps;
-
-elseif do_superstar==0
-    [z_grid,pi_z]=discretizeAR1_Rouwenhorst(uncmean_eps,rho_eps,sig_eps,n_z);
-    z_grid = exp(z_grid);
-end
+[z_grid,pi_z]=discretizeAR1_Rouwenhorst(uncmean_eps,rho_eps,sig_eps,n_z);
+z_grid = exp(z_grid);
 
 % Normalize so that z has mean one
 aux = pi_z^1000;

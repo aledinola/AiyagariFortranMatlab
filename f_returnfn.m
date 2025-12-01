@@ -1,13 +1,12 @@
-function F = f_returnfn(aprime,a,z,alpha,delta,r,tau_a,crra)
+function F = f_returnfn(aprime,a,z,alpha,delta,r,crra)
 % Action space: (aprime,a,z)
 % State variables: (a,z)
 
 w=(1-alpha)*((r+delta)/alpha)^(alpha/(alpha-1));
 
 income = w*z+r*a;
-taxes = tau_a*a;
 
-cons  = a + income - taxes - aprime; 
+cons  = a + income - aprime; 
 
 F=-Inf;
 if cons>0
